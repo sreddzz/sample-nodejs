@@ -1,0 +1,20 @@
+{
+  "type": "module",
+  "name": "node-jest",
+  "version": "1.0.0",
+  "description": "A Hello World App",
+  "main": "bin/index.js",
+  "scripts": {
+    "test": "jest --coverage --runInBand --forceExit"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.2"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.16.8",
+    "jest": "^27.4.7",
+    "supertest": "^6.2.1"
+  }
+}
