@@ -11,3 +11,19 @@ jobs:
           node-version: '16'
       - run: npm install --cache /tmp/empty-cache
       - run: npm test
+      
+  scan: 
+    name: Xray 
+    runs-on: self-hosted 
+    container: ${{inputs.container}} 
+    if: ${{vars.XRAY_ENABLED == 'true'}} ## env vars won't get evaluated as a boolean 
+    continue-on-error: true 
+
+    permissions: 
+      actions: read 
+      contents: read 
+      security-events: write 
+
+    defaults: 
+      run: 
+        working-directory: ${{inputs.working-directory}}
