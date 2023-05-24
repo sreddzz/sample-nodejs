@@ -11,9 +11,3 @@ jobs:
           node-version: '16'
       - run: npm install --cache /tmp/empty-cache
       - run: npm test
-      
-  scan: 
-    name: Xray 
-    runs-on: self-hosted 
-    steps: 
-    - if: ${{vars.XRAY_ENABLED == 'true'}} ## env vars won't get evaluated as a boolean
