@@ -1,5 +1,7 @@
 name: learn-github-actions
 run-name: ${{ github.actor }} is learning GitHub Actions
+permissions:
+  contents: read
 on: [push]
 jobs:
   demo-nodejs-app:
