@@ -12,5 +12,5 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --cache /tmp/empty-cache
-      - run: npm build
+      - run: npm run build
       - run: npm test
