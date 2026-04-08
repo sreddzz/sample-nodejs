@@ -17,5 +17,9 @@
     "@babel/preset-env": "^7.16.8",
     "jest": "^27.4.7",
     "supertest": "^6.2.1"
+  },
+  "overrides": {
+    "form-data": ">=3.0.4",
+    "@babel/traverse": ">=7.23.2"
   }
 }
