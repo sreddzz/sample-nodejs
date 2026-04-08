@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const [, , codeqlPath, xrayPath] = process.argv;
+const [, , codeqlPath, xrayPath, dependabotPath] = process.argv;
 
 const severityRank = {
   low: 1,
@@ -142,6 +142,47 @@ function normalizeXrayFindings(payload, threshold) {
     .filter((finding) => includeBySeverity(finding.severity, threshold));
 }
 
+function normalizeDependabotAlerts(alerts, threshold) {
+  if (!Array.isArray(alerts)) {
+    return [];
+  }
+
+  return alerts
+    .map((alert) => {
+      const advisory = alert.security_advisory || {};
+      const vulnerability = alert.security_vulnerability || {};
+      const severity = normalizeSeverity(firstDefined(
+        advisory.severity,
+        vulnerability.severity,
+      ));
+      const packageName = firstDefined(
+        vulnerability.package?.name,
+        advisory.package?.name,
+      );
+      const currentVersion = firstDefined(
+        vulnerability.vulnerable_version_range,
+      );
+      const fixedVersion = firstDefined(
+        vulnerability.first_patched_version?.identifier,
+      );
+      const cveId = (advisory.identifiers || []).find((id) => id.type === "CVE")?.value;
+
+      return {
+        source: "Dependabot",
+        severity,
+        title: firstDefined(advisory.summary, advisory.description, "Unnamed Dependabot alert"),
+        identifier: firstDefined(cveId, advisory.ghsa_id, String(alert.number), "dependabot"),
+        packageName,
+        currentVersion,
+        fixedVersion,
+        location: firstDefined(alert.dependency?.manifest_path, packageName, "dependency graph"),
+        url: alert.html_url,
+        raw: alert,
+      };
+    })
+    .filter((finding) => includeBySeverity(finding.severity, threshold));
+}
+
 function dedupeFindings(findings) {
   const seen = new Set();
   return findings.filter((finding) => {
@@ -217,9 +258,11 @@ function buildBody(findings) {
 const threshold = process.env.SEVERITY_THRESHOLD || "medium";
 const codeqlAlerts = readJson(codeqlPath);
 const xrayPayload = readJson(xrayPath);
+const dependabotAlerts = readJson(dependabotPath);
 const findings = dedupeFindings([
   ...normalizeCodeqlAlerts(codeqlAlerts, threshold),
   ...normalizeXrayFindings(xrayPayload, threshold),
+  ...normalizeDependabotAlerts(dependabotAlerts, threshold),
 ]);
 
 const issueTitle = buildTitle(findings);
