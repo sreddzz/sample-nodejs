@@ -1,0 +1,144 @@
+name: Security Remediation with Copilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      severity-threshold:
+        description: Minimum severity to include
+        required: false
+        default: medium
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+          - critical
+      include-codeql:
+        description: Include open CodeQL alerts
+        required: false
+        default: true
+        type: boolean
+      include-xray:
+        description: Include JFrog Xray findings
+        required: false
+        default: true
+        type: boolean
+  schedule:
+    - cron: '30 13 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  security-events: read
+
+concurrency:
+  group: security-remediation-copilot
+  cancel-in-progress: false
+
+jobs:
+  prepare-remediation-task:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SEVERITY_THRESHOLD: ${{ inputs.severity-threshold || 'medium' }}
+      INCLUDE_CODEQL: ${{ inputs.include-codeql != false }}
+      INCLUDE_XRAY: ${{ inputs.include-xray != false }}
+      XRAY_FINDINGS_URL: ${{ secrets.XRAY_FINDINGS_URL }}
+      XRAY_TOKEN: ${{ secrets.XRAY_TOKEN }}
+      COPILOT_ASSIGNEE: ${{ vars.COPILOT_ASSIGNEE || 'copilot' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Collect GitHub code scanning alerts
+        if: env.INCLUDE_CODEQL == 'true'
+        run: |
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/code-scanning/alerts?state=open&per_page=100" > codeql-alerts.json
+
+      - name: Default empty CodeQL alerts
+        if: env.INCLUDE_CODEQL != 'true'
+        run: echo '[]' > codeql-alerts.json
+
+      - name: Collect JFrog Xray findings
+        if: env.INCLUDE_XRAY == 'true' && env.XRAY_FINDINGS_URL != '' && env.XRAY_TOKEN != ''
+        run: |
+          curl --silent --show-error --fail \
+            -H "Authorization: Bearer ${XRAY_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${XRAY_FINDINGS_URL}" > xray-findings.json
+
+      - name: Default empty Xray findings
+        if: env.INCLUDE_XRAY != 'true' || env.XRAY_FINDINGS_URL == '' || env.XRAY_TOKEN == ''
+        run: echo '[]' > xray-findings.json
+
+      - name: Build Copilot remediation issue
+        id: build_issue
+        run: node .github/scripts/build-security-remediation-issue.mjs codeql-alerts.json xray-findings.json
+
+      - name: Close stale remediation issues
+        if: steps.build_issue.outputs.has_findings != 'true'
+        run: |
+          issue_numbers=$(gh issue list \
+            --label copilot-security-fix \
+            --state open \
+            --json number \
+            --jq '.[].number')
+          if [[ -n "$issue_numbers" ]]; then
+            while IFS= read -r issue_number; do
+              gh issue close "$issue_number" --comment "No open fixable security findings remain in the latest scan set."
+            done <<< "$issue_numbers"
+          fi
+
+      - name: Ensure issue labels exist
+        if: steps.build_issue.outputs.has_findings == 'true'
+        continue-on-error: true
+        run: |
+          gh label create security --color B60205 --description "Security-related work" --force
+          gh label create copilot-security-fix --color 5319E7 --description "Automated remediation issue for Copilot" --force
+          gh label create automated-remediation --color 1D76DB --description "Created by the remediation workflow" --force
+
+      - name: Create or update remediation issue
+        if: steps.build_issue.outputs.has_findings == 'true'
+        id: issue
+        run: |
+          existing_issue=$(gh issue list \
+            --label copilot-security-fix \
+            --state open \
+            --json number \
+            --jq '.[0].number')
+
+          if [[ -n "$existing_issue" ]]; then
+            gh issue edit "$existing_issue" \
+              --title "$(cat remediation-issue-title.txt)" \
+              --body-file remediation-issue-body.md
+            issue_number="$existing_issue"
+          else
+            issue_url=$(gh issue create \
+              --title "$(cat remediation-issue-title.txt)" \
+              --body-file remediation-issue-body.md \
+              --label security \
+              --label copilot-security-fix \
+              --label automated-remediation)
+            issue_number="${issue_url##*/}"
+          fi
+
+          echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
+
+      - name: Assign issue to Copilot coding agent
+        if: steps.build_issue.outputs.has_findings == 'true'
+        continue-on-error: true
+        run: |
+          gh issue edit "${{ steps.issue.outputs.issue_number }}" --add-assignee "${COPILOT_ASSIGNEE}"
+
+      - name: Add follow-up comment
+        if: steps.build_issue.outputs.has_findings == 'true'
+        continue-on-error: true
+        run: |
+          gh issue comment "${{ steps.issue.outputs.issue_number }}" \
+            --body "Copilot, please remediate the findings described in this issue, open a PR quickly, use the repository PR checks as the validation source of truth, and push follow-up commits until the required checks pass or you hit a real blocker."
