@@ -23,6 +23,11 @@ on:
         required: false
         default: true
         type: boolean
+      include-dependabot:
+        description: Include Dependabot alerts
+        required: false
+        default: true
+        type: boolean
   schedule:
     - cron: '30 13 * * 1'
 
@@ -44,6 +49,7 @@ jobs:
       SEVERITY_THRESHOLD: ${{ inputs.severity-threshold || 'medium' }}
       INCLUDE_CODEQL: ${{ inputs.include-codeql != false }}
       INCLUDE_XRAY: ${{ inputs.include-xray != false }}
+      INCLUDE_DEPENDABOT: ${{ inputs.include-dependabot != false }}
       XRAY_FINDINGS_URL: ${{ secrets.XRAY_FINDINGS_URL }}
       XRAY_TOKEN: ${{ secrets.XRAY_TOKEN }}
       COPILOT_ASSIGNEE: ${{ vars.COPILOT_ASSIGNEE || 'copilot' }}
@@ -77,9 +83,20 @@ jobs:
         if: env.INCLUDE_XRAY != 'true' || env.XRAY_FINDINGS_URL == '' || env.XRAY_TOKEN == ''
         run: echo '[]' > xray-findings.json
 
+      - name: Collect Dependabot alerts
+        if: env.INCLUDE_DEPENDABOT == 'true'
+        run: |
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/dependabot/alerts?state=open&per_page=100" > dependabot-alerts.json
+
+      - name: Default empty Dependabot alerts
+        if: env.INCLUDE_DEPENDABOT != 'true'
+        run: echo '[]' > dependabot-alerts.json
+
       - name: Build Copilot remediation issue
         id: build_issue
-        run: node .github/scripts/build-security-remediation-issue.mjs codeql-alerts.json xray-findings.json
+        run: node .github/scripts/build-security-remediation-issue.mjs codeql-alerts.json xray-findings.json dependabot-alerts.json
 
       - name: Close stale remediation issues
         if: steps.build_issue.outputs.has_findings != 'true'
