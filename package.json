@@ -5,6 +5,7 @@
   "description": "A Hello World App",
   "main": "bin/index.js",
   "scripts": {
+    "build": "node --check bin/index.js && node --check bin/app.js",
     "test": "jest --coverage --runInBand --forceExit"
   },
   "author": "",
