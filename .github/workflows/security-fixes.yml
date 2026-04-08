@@ -46,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DEPENDABOT_TOKEN: ${{ secrets.DEPENDABOT_TOKEN || secrets.GITHUB_TOKEN }}
       SEVERITY_THRESHOLD: ${{ inputs.severity-threshold || 'medium' }}
       INCLUDE_CODEQL: ${{ inputs.include-codeql != false }}
       INCLUDE_XRAY: ${{ inputs.include-xray != false }}
@@ -89,6 +90,8 @@ jobs:
           gh api \
             -H "Accept: application/vnd.github+json" \
             "/repos/${GITHUB_REPOSITORY}/dependabot/alerts?state=open&per_page=100" > dependabot-alerts.json
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
 
       - name: Default empty Dependabot alerts
         if: env.INCLUDE_DEPENDABOT != 'true'
