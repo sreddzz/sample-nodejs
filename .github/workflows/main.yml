@@ -3,6 +3,9 @@ run-name: ${{ github.actor }} is learning GitHub Actions
 permissions:
   contents: read
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -14,6 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --cache /tmp/empty-cache
+          cache: 'npm'
+      - run: npm ci --no-audit --fund=false
       - run: npm run build
       - run: npm test
