@@ -2,7 +2,10 @@ name: learn-github-actions
 run-name: ${{ github.actor }} is learning GitHub Actions
 permissions:
   contents: read
-on: [push]
+on:
+  pull_request:
+    branches:
+      - main
 jobs:
   demo-nodejs-app:
     runs-on: ubuntu-latest
