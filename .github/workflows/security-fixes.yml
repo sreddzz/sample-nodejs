@@ -9,6 +9,7 @@ on:
         default: medium
         type: choice
         options:
+          - all
           - low
           - medium
           - high
