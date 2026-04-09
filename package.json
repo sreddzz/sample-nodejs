@@ -1,26 +1,39 @@
 {
-  "type": "module",
-  "name": "node-jest",
+  "name": "sample-nodejs-cdk",
   "version": "1.0.0",
-  "description": "A Hello World App",
-  "main": "bin/index.js",
+  "private": true,
+  "description": "AWS CDK TypeScript app that provisions an S3 bucket and IAM role",
   "scripts": {
-    "build": "node --check bin/index.js && node --check bin/app.js",
-    "test": "jest --coverage --runInBand --forceExit"
+    "lint": "eslint .",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest --runInBand",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy"
   },
-  "author": "",
   "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.22.1",
-    "helmet": "^8.0.0",
-    "morgan": "^1.10.0"
+    "aws-cdk-lib": "^2.150.0",
+    "constructs": "^10.3.0",
+    "source-map-support": "^0.5.21"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.29.2",
-    "jest": "^30.3.0",
-    "nodemon": "^3.1.0",
-    "supertest": "^7.2.2"
+    "@eslint/js": "^9.21.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.2",
+    "axios": "0.21.1",
+    "aws-cdk": "^2.150.0",
+    "eslint": "^9.21.0",
+    "globals": "^15.15.0",
+    "jest": "^29.7.0",
+    "lodash": "4.17.20",
+    "minimist": "0.0.8",
+    "qs": "6.5.2",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript-eslint": "^8.24.1",
+    "typescript": "^5.7.2"
   }
 }
